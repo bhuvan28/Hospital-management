@@ -22,7 +22,7 @@ Patient data, NRIC, diagnosis, guardian details and financial records stay on in
 ```
 backend/     FastAPI app, Alembic migrations, pytest
 frontend/    Next.js UI
-scripts/     backup, restore, seed
+scripts/     backup, restore, ensure-postgres
 docs/        implementation notes
 ```
 
@@ -42,13 +42,16 @@ docker compose -f docker-compose.dev.yml up --build
 
 On first start the development stack runs migrations and loads **DEVELOPMENT ONLY** seed data.
 
+The Compose **backend** service uses hostname `postgres` (the compose service name). A `.env` copied for host-side processes must keep `POSTGRES_HOST=localhost`. Using `postgres` outside the compose network causes SQLAlchemy/psycopg to fail with `Name or service not known`.
+
 ### Option B — Manual
 
-PostgreSQL 16 and Python 3.12+ required.
+PostgreSQL 16 and Python 3.12+ required. You can start only the database with Compose (`docker compose -f docker-compose.dev.yml up -d postgres`) and run the API on the host; still use `localhost`, not `postgres`.
 
 ```bash
-# Database
+# Database (native PostgreSQL, or the compose postgres service published on 5432)
 createdb rmh_hctm
+# or: ./scripts/ensure-postgres.sh
 
 # Backend
 cd backend
