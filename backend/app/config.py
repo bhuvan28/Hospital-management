@@ -1,8 +1,41 @@
+import socket
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import urlparse, urlunparse
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Docker Compose service names. They resolve only on the compose network.
+# Host-side processes (local uvicorn, Alembic, Cloud Agents) must use localhost.
+COMPOSE_ONLY_DB_HOSTS = frozenset({"postgres", "db"})
+
+
+def hostname_resolves(host: str) -> bool:
+    """Return True when DNS can resolve host. Used to detect compose-only names."""
+    try:
+        socket.getaddrinfo(host, None)
+        return True
+    except OSError:
+        return False
+
+
+def rewrite_unresolvable_compose_url(url: str) -> str:
+    """Rewrite compose hostnames in a SQLAlchemy URL to localhost when they do not resolve."""
+    parsed = urlparse(url)
+    netloc = parsed.netloc
+    if not netloc:
+        return url
+    if "@" in netloc:
+        userinfo, hostport = netloc.rsplit("@", 1)
+        prefix = f"{userinfo}@"
+    else:
+        hostport = netloc
+        prefix = ""
+    host, sep, port = hostport.partition(":")
+    if host not in COMPOSE_ONLY_DB_HOSTS or hostname_resolves(host):
+        return url
+    return urlunparse(parsed._replace(netloc=f"{prefix}localhost{sep}{port}"))
 
 
 class Settings(BaseSettings):
@@ -44,6 +77,20 @@ class Settings(BaseSettings):
     @classmethod
     def reject_placeholder_in_production(cls, value: str, info):
         return value
+
+    @model_validator(mode="after")
+    def fallback_unresolvable_compose_hosts(self):
+        """Use localhost when POSTGRES_HOST/DATABASE_URL point at compose DNS that is not resolvable.
+
+        Copying .env.example used to set POSTGRES_HOST=postgres. That name only exists on the
+        Docker Compose network, so host-side SQLAlchemy/psycopg failed with
+        [Errno -2] Name or service not known.
+        """
+        if self.postgres_host in COMPOSE_ONLY_DB_HOSTS and not hostname_resolves(self.postgres_host):
+            self.postgres_host = "localhost"
+        if self.database_url:
+            self.database_url = rewrite_unresolvable_compose_url(self.database_url)
+        return self
 
     @property
     def sqlalchemy_database_uri(self) -> str:

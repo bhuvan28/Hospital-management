@@ -26,6 +26,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-production}
       POSTGRES_HOST: postgres
+      # In-network hostname. Host-side .env must use localhost, not this value.
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-rmh}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rmh_hctm}
       SEED_ON_STARTUP: ${SEED_ON_STARTUP:-false}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
