@@ -54,7 +54,9 @@ def test_rewrite_preserves_credentials_and_port(monkeypatch):
     assert parsed.hostname == "localhost"
     assert parsed.port == 5433
     assert parsed.username == "rmh"
-    assert parsed.password == "p@ss"
+    # Percent-encoding in the password is preserved so SQLAlchemy URLs stay valid.
+    assert parsed.password in {"p@ss", "p%40ss"}
+    assert "p%40ss" in rewritten
 
 
 def test_env_example_uses_localhost_not_compose_dns():
