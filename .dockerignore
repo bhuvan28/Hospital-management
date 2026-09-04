@@ -1,0 +1,15 @@
+.git
+.venv
+venv
+__pycache__
+node_modules
+.next
+.env
+backups
+*.pyc
+postgres-data
+frontend/.next
+backend/.venv
+backend/.pytest_cache
+backend/.mypy_cache
+backend/.ruff_cache
