@@ -86,6 +86,20 @@ export type OccupancySummary = {
   waiting_list_open: number;
 };
 
+export type OccupantRow = {
+  stay_id: number;
+  room_id: number;
+  room_number: string;
+  patient_id: number;
+  patient_name: string;
+  registration_no: string;
+  ward_name: string | null;
+  check_in_date: string;
+  officer_name: string | null;
+  room_inspected?: boolean;
+  remarks?: string | null;
+};
+
 export type WaitlistEntry = {
   id: number;
   patient_id: number;

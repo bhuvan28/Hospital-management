@@ -13,8 +13,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    # Bind only to localhost so PostgreSQL is not published on the public interface.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   backend:
     build:
@@ -55,6 +56,12 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/login"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
 
 volumes:
   postgres_data:

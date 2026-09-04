@@ -17,6 +17,8 @@ export default function RoomsPage() {
   const [patientId, setPatientId] = useState("");
   const [inspected, setInspected] = useState(false);
   const [remarks, setRemarks] = useState("");
+  const [admissionDate, setAdmissionDate] = useState("");
+  const [loading, setLoading] = useState(true);
 
   async function load() {
     const [board, occupancy] = await Promise.all([
@@ -25,10 +27,14 @@ export default function RoomsPage() {
     ]);
     setRooms(board);
     setSummary(occupancy);
+    setLoading(false);
   }
 
   useEffect(() => {
-    load().catch((err) => setError(err.message));
+    load().catch((err) => {
+      setError(err.message);
+      setLoading(false);
+    });
   }, []);
 
   async function openCheckIn(room: Room) {
@@ -38,6 +44,7 @@ export default function RoomsPage() {
     setPatientId("");
     setInspected(false);
     setRemarks("");
+    setAdmissionDate("");
   }
 
   async function submitCheckIn(event: FormEvent) {
@@ -46,7 +53,12 @@ export default function RoomsPage() {
     try {
       await api(`/api/rooms/${checkInRoom.id}/check-in`, {
         method: "POST",
-        body: JSON.stringify({ patient_id: Number(patientId), room_inspected: inspected, remarks }),
+        body: JSON.stringify({
+          patient_id: Number(patientId),
+          room_inspected: inspected,
+          remarks,
+          hospital_admission_date: admissionDate || null,
+        }),
       });
       setSuccess(`Checked in to room ${checkInRoom.room_number}.`);
       setCheckInRoom(null);
@@ -94,6 +106,7 @@ export default function RoomsPage() {
           {summary.todays_check_ins} check-ins today
         </p>
       ) : null}
+      {loading && !rooms.length ? <p className="muted">Loading room board…</p> : null}
       <div className="room-board">
         {rooms.map((room) => (
           <article key={room.id} className={`card room-card ${room.status}`}>
@@ -144,6 +157,9 @@ export default function RoomsPage() {
                   </option>
                 ))}
               </select>
+            </Field>
+            <Field label="Hospital admission date">
+              <input type="date" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} />
             </Field>
             <Field label="Room inspected">
               <select value={inspected ? "yes" : "no"} onChange={(e) => setInspected(e.target.value === "yes")}>

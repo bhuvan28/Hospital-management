@@ -27,6 +27,8 @@ export default function DonationsPage() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
   const [form, setForm] = useState({
     date: "",
     donor_name: "",
@@ -39,7 +41,7 @@ export default function DonationsPage() {
 
   async function load() {
     const [page, totals, cats] = await Promise.all([
-      api<Page<Donation>>(`/api/donations${qs({ q, donation_type: type || undefined })}`),
+      api<Page<Donation>>(`/api/donations${qs({ q, donation_type: type || undefined, start: start || undefined, end: end || undefined })}`),
       api<{ monthly_total: string; annual_total: string }>("/api/donations/summary"),
       api<Lookup[]>("/api/lookups/donation-categories"),
     ]);
@@ -50,7 +52,7 @@ export default function DonationsPage() {
 
   useEffect(() => {
     load().catch((err) => setError(err.message));
-  }, [q, type]);
+  }, [q, type, start, end]);
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -92,6 +94,8 @@ export default function DonationsPage() {
             <option key={item} value={item}>{item.replace("_", " ")}</option>
           ))}
         </select>
+        <input type="date" value={start} onChange={(e) => setStart(e.target.value)} style={{ maxWidth: 170 }} aria-label="From date" />
+        <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} style={{ maxWidth: 170 }} aria-label="To date" />
       </div>
       <div className="card table-wrap">
         {!rows?.items.length ? <Empty>No donations recorded.</Empty> : (

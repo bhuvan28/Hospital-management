@@ -2,7 +2,20 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, String, Text, UniqueConstraint, func, text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -35,6 +48,10 @@ class RoomStay(Base):
             sqlite_where=text("check_out_date IS NULL"),
             postgresql_where=text("check_out_date IS NULL"),
         ),
+        CheckConstraint(
+            "check_out_date IS NULL OR check_out_date >= check_in_date",
+            name="ck_stay_checkout_after_checkin",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -46,9 +63,7 @@ class RoomStay(Base):
     officer_on_duty_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     room_inspected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     remarks: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     patient = relationship("Patient", back_populates="stays")
     room = relationship("Room", back_populates="stays")
@@ -57,15 +72,22 @@ class RoomStay(Base):
 
 class WaitlistEntry(Base):
     __tablename__ = "waitlist_entries"
+    __table_args__ = (
+        Index(
+            "uq_waitlist_open_patient",
+            "patient_id",
+            unique=True,
+            sqlite_where=text("resolved_date IS NULL"),
+            postgresql_where=text("resolved_date IS NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False)
     added_date: Mapped[date] = mapped_column(Date, nullable=False)
     resolved_date: Mapped[date | None] = mapped_column(Date)
     remarks: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     patient = relationship("Patient", back_populates="waitlist_entries")
 

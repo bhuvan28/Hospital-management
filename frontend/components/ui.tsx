@@ -13,20 +13,29 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 }
 
 export function Banner({ kind, children }: { kind: "error" | "success" | "info"; children: React.ReactNode }) {
-  return <div className={`banner ${kind}`}>{children}</div>;
+  return (
+    <div className={`banner ${kind}`} role={kind === "error" ? "alert" : "status"}>
+      {children}
+    </div>
+  );
 }
 
 export function Field({
   label,
   children,
+  hint,
 }: {
   label: string;
   children: React.ReactNode;
+  hint?: string;
 }) {
   return (
     <div>
-      <label>{label}</label>
-      {children}
+      <label>
+        {label}
+        {children}
+      </label>
+      {hint ? <p className="muted" style={{ fontSize: "0.8rem", marginTop: 4 }}>{hint}</p> : null}
     </div>
   );
 }
@@ -41,11 +50,11 @@ export function Modal({
   children: React.ReactNode;
 }) {
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="card modal" onClick={(event) => event.stopPropagation()}>
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
+      <div className="card modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div className="topbar">
-          <h2>{title}</h2>
-          <button className="btn secondary" onClick={onClose}>
+          <h2 id="modal-title">{title}</h2>
+          <button className="btn secondary" onClick={onClose} type="button">
             Close
           </button>
         </div>
@@ -56,6 +65,10 @@ export function Modal({
 }
 
 export function Empty({ children }: { children: React.ReactNode }) {
+  return <div className="empty">{children}</div>;
+}
+
+export function Loading({ children = "Loading…" }: { children?: React.ReactNode }) {
   return <div className="empty">{children}</div>;
 }
 
@@ -72,6 +85,7 @@ export function ConfirmButton({
 }) {
   return (
     <button
+      type="button"
       className={danger ? "btn danger" : "btn secondary"}
       onClick={() => {
         if (window.confirm(message)) onConfirm();

@@ -1,6 +1,9 @@
 from pathlib import Path
 from urllib.parse import urlparse
 
+import pytest
+from pydantic import ValidationError
+
 from app.config import Settings, rewrite_unresolvable_compose_url
 
 
@@ -47,9 +50,7 @@ def test_database_url_compose_host_falls_back(monkeypatch):
 
 def test_rewrite_preserves_credentials_and_port(monkeypatch):
     monkeypatch.setattr("app.config.hostname_resolves", lambda host: False)
-    rewritten = rewrite_unresolvable_compose_url(
-        "postgresql+psycopg://rmh:p%40ss@db:5433/app"
-    )
+    rewritten = rewrite_unresolvable_compose_url("postgresql+psycopg://rmh:p%40ss@db:5433/app")
     parsed = urlparse(rewritten)
     assert parsed.hostname == "localhost"
     assert parsed.port == 5433
@@ -66,3 +67,19 @@ def test_env_example_uses_localhost_not_compose_dns():
     assert "POSTGRES_HOST=postgres" not in text
     assert "@localhost:5432/" in text
     assert "@postgres:5432/" not in text
+
+
+def test_production_rejects_weak_secret(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "short")
+    monkeypatch.setenv("SEED_ON_STARTUP", "false")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_production_rejects_seed_on_startup(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SECRET_KEY", "a" * 40)
+    monkeypatch.setenv("SEED_ON_STARTUP", "true")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)

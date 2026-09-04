@@ -58,6 +58,8 @@ export default function UsersPage() {
                   <button
                     className="btn secondary"
                     onClick={async () => {
+                      const action = row.active ? "Deactivate" : "Activate";
+                      if (!window.confirm(`${action} ${row.email}?`)) return;
                       await api(`/api/users/${row.id}`, { method: "PATCH", body: JSON.stringify({ active: !row.active }) });
                       await load();
                     }}

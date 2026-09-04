@@ -12,4 +12,7 @@ def test_waitlist_days_property():
 
 
 def test_occupancy_formula_matches_prd():
+    assert occupancy_rate(0, 18) == 0
     assert occupancy_rate(9, 18) == 50.0
+    assert occupancy_rate(18, 18) == 100.0
+    assert occupancy_rate(1, 0) == 0.0

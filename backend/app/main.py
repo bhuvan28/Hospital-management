@@ -21,6 +21,7 @@ from app.core.errors import (
 from app.core.limiter import limiter
 from app.database import SessionLocal
 from app.logging_config import configure_logging, get_logger
+from app.security.csrf import CSRFMiddleware
 from app.seed import run_seed
 
 logger = get_logger("app")
@@ -59,8 +60,7 @@ def create_app() -> FastAPI:
     application = FastAPI(
         title=settings.app_name,
         description=(
-            "Self-hosted operations platform for Ronald McDonald House at "
-            "Hospital Canselor Tuanku Muhriz (HCTM), UKM."
+            "Self-hosted operations platform for Ronald McDonald House at Hospital Canselor Tuanku Muhriz (HCTM), UKM."
         ),
         version="1.0.0",
         lifespan=lifespan,
@@ -75,6 +75,7 @@ def create_app() -> FastAPI:
     application.add_exception_handler(RequestValidationError, validation_error_handler)
     application.add_exception_handler(Exception, unhandled_error_handler)
     application.add_middleware(SecurityHeadersMiddleware)
+    application.add_middleware(CSRFMiddleware)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,

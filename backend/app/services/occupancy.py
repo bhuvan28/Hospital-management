@@ -19,6 +19,80 @@ def occupancy_rate(occupied: int, total: int) -> float:
     return round((occupied / total) * 100, 2)
 
 
+def _occupant_brief(stay: RoomStay) -> dict:
+    patient = stay.patient
+    return {
+        "stay_id": stay.id,
+        "room_id": stay.room_id,
+        "room_number": stay.room.room_number if stay.room else None,
+        "patient_id": stay.patient_id,
+        "patient_name": patient.name if patient else None,
+        "registration_no": patient.registration_no if patient else None,
+        "ward_name": patient.ward_clinic.name if patient and patient.ward_clinic else None,
+        "check_in_date": stay.check_in_date.isoformat() if stay.check_in_date else None,
+        "check_out_date": stay.check_out_date.isoformat() if stay.check_out_date else None,
+        "officer_name": stay.officer.name if stay.officer else None,
+        "room_inspected": stay.room_inspected,
+    }
+
+
+def current_occupants_summary(db: Session) -> list[dict]:
+    occupants = []
+    for room in room_board(db):
+        stay = current_occupant(room)
+        if stay and stay.patient:
+            occupants.append(
+                {
+                    "stay_id": stay.id,
+                    "room_id": room.id,
+                    "room_number": room.room_number,
+                    "patient_id": stay.patient_id,
+                    "patient_name": stay.patient.name,
+                    "registration_no": stay.patient.registration_no,
+                    "ward_name": stay.patient.ward_clinic.name if stay.patient.ward_clinic else None,
+                    "check_in_date": stay.check_in_date.isoformat(),
+                    "officer_name": stay.officer.name if stay.officer else None,
+                    "room_inspected": stay.room_inspected,
+                    "remarks": stay.remarks,
+                }
+            )
+    return occupants
+
+
+def todays_movements(db: Session, today: date | None = None) -> dict:
+    today = today or date.today()
+    check_ins = list(
+        db.scalars(
+            select(RoomStay)
+            .options(
+                joinedload(RoomStay.patient).joinedload(Patient.ward_clinic),
+                joinedload(RoomStay.room),
+                joinedload(RoomStay.officer),
+            )
+            .where(RoomStay.check_in_date == today)
+        )
+        .unique()
+        .all()
+    )
+    check_outs = list(
+        db.scalars(
+            select(RoomStay)
+            .options(
+                joinedload(RoomStay.patient).joinedload(Patient.ward_clinic),
+                joinedload(RoomStay.room),
+                joinedload(RoomStay.officer),
+            )
+            .where(RoomStay.check_out_date == today)
+        )
+        .unique()
+        .all()
+    )
+    return {
+        "check_ins": [_occupant_brief(stay) for stay in check_ins],
+        "check_outs": [_occupant_brief(stay) for stay in check_outs],
+    }
+
+
 def _active_stay_query(room_id: int) -> Select:
     return select(RoomStay).where(RoomStay.room_id == room_id, RoomStay.check_out_date.is_(None))
 
@@ -29,19 +103,9 @@ def get_occupancy_summary(db: Session, today: date | None = None) -> dict:
     occupied = db.scalar(select(func.count(Room.id)).where(Room.status == RoomStatus.OCCUPIED)) or 0
     vacant = db.scalar(select(func.count(Room.id)).where(Room.status == RoomStatus.VACANT)) or 0
     maintenance = db.scalar(select(func.count(Room.id)).where(Room.status == RoomStatus.MAINTENANCE)) or 0
-    todays_check_ins = (
-        db.scalar(select(func.count(RoomStay.id)).where(RoomStay.check_in_date == today)) or 0
-    )
-    todays_check_outs = (
-        db.scalar(
-            select(func.count(RoomStay.id)).where(RoomStay.check_out_date == today)
-        )
-        or 0
-    )
-    waiting = (
-        db.scalar(select(func.count(WaitlistEntry.id)).where(WaitlistEntry.resolved_date.is_(None)))
-        or 0
-    )
+    todays_check_ins = db.scalar(select(func.count(RoomStay.id)).where(RoomStay.check_in_date == today)) or 0
+    todays_check_outs = db.scalar(select(func.count(RoomStay.id)).where(RoomStay.check_out_date == today)) or 0
+    waiting = db.scalar(select(func.count(WaitlistEntry.id)).where(WaitlistEntry.resolved_date.is_(None))) or 0
     return {
         "total_rooms": total,
         "occupied_rooms": occupied,
@@ -57,11 +121,15 @@ def get_occupancy_summary(db: Session, today: date | None = None) -> dict:
 def room_board(db: Session) -> list[Room]:
     return list(
         db.scalars(
-            select(Room).options(
+            select(Room)
+            .options(
                 joinedload(Room.stays).joinedload(RoomStay.patient).joinedload(Patient.ward_clinic),
                 joinedload(Room.stays).joinedload(RoomStay.officer),
-            ).order_by(Room.room_number)
-        ).unique().all()
+            )
+            .order_by(Room.room_number)
+        )
+        .unique()
+        .all()
     )
 
 

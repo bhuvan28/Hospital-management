@@ -20,10 +20,20 @@ async function parseError(response: Response): Promise<HttpError> {
   }
 }
 
+function csrfToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.split("; ").find((part) => part.startsWith("rmh_csrf="));
+  return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null;
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+  const csrf = csrfToken();
+  if (csrf && !headers.has("X-CSRF-Token")) {
+    headers.set("X-CSRF-Token", csrf);
   }
   const response = await fetch(path, {
     ...init,

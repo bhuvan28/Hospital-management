@@ -99,6 +99,17 @@ def test_reports_and_exports(client, db):
     assert occupancy["days"][-1]["occupancy_rate"] >= 0
     census = client.get("/api/reports/census", headers=admin).json()
     assert census["patient_count"] == 1
+    dumped = str(census)
+    assert "Aisyah" not in dumped
+    assert "nric" not in dumped.lower()
+    add_user(db, "viewer@rmh.example.com", UserRole.VIEWER)
+    viewer_headers = auth_header(client, "viewer@rmh.example.com")
+    viewer_census = client.get("/api/reports/census", headers=viewer_headers)
+    assert viewer_census.status_code == 200
+    assert "name" not in viewer_census.json()
+    dashboard = client.get("/api/dashboard", headers=viewer_headers).json()
+    assert "current_occupants" not in dashboard
+    assert dashboard["occupancy"]["occupancy_rate"] >= 0
     xlsx = client.get("/api/reports/occupancy/export", headers=admin, params={"format": "xlsx"})
     assert xlsx.status_code == 200
     assert xlsx.headers["content-type"].startswith("application/vnd.openxmlformats")

@@ -48,13 +48,21 @@ def list_patients(
     registration_no: str | None = None,
     ward_clinic_id: int | None = None,
     status: str | None = None,
+    sort_by: str = Query("name"),
+    sort_dir: str = Query("asc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     actor: User = require_permission("patients:read"),
 ):
     stmt = patient_service.patient_query(
-        db, q=q, registration_no=registration_no, ward_clinic_id=ward_clinic_id, status=status
+        db,
+        q=q,
+        registration_no=registration_no,
+        ward_clinic_id=ward_clinic_id,
+        status=status,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
     items, total = patient_service.paginate_patients(db, stmt, page, page_size)
     sensitive = has_permission(actor.role, "patients:read_sensitive")

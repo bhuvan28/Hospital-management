@@ -62,6 +62,8 @@ docs/        PRD notes and open questions
 
 Hiding a nav item is never treated as authorization.
 
+Cookie-authenticated mutations require a matching `X-CSRF-Token` header. Bearer API clients skip CSRF.
+
 ## Open questions (not invented)
 
 1. Exact social-worker room-fee assessment fields — isolated JSON + notes section

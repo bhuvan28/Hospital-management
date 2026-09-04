@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlparse, urlunparse
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Docker Compose service names. They resolve only on the compose network.
@@ -73,11 +73,6 @@ class Settings(BaseSettings):
     seed_admin_email: str = "admin@rmh.example.com"
     seed_admin_password: str = "DevAdmin!2026"
 
-    @field_validator("secret_key")
-    @classmethod
-    def reject_placeholder_in_production(cls, value: str, info):
-        return value
-
     @model_validator(mode="after")
     def fallback_unresolvable_compose_hosts(self):
         """Use localhost when POSTGRES_HOST/DATABASE_URL point at compose DNS that is not resolvable.
@@ -90,6 +85,16 @@ class Settings(BaseSettings):
             self.postgres_host = "localhost"
         if self.database_url:
             self.database_url = rewrite_unresolvable_compose_url(self.database_url)
+        if self.app_env == "production":
+            weak_secrets = {
+                "INSECURE_DEV_ONLY_CHANGE_ME",
+                "CHANGE_ME_GENERATE_A_LONG_RANDOM_SECRET",
+                "dev-only-not-for-production",
+            }
+            if self.secret_key in weak_secrets or len(self.secret_key) < 32:
+                raise ValueError("SECRET_KEY must be a long random value in production")
+            if self.seed_on_startup:
+                raise ValueError("SEED_ON_STARTUP must be false in production")
         return self
 
     @property

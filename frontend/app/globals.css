@@ -72,6 +72,15 @@ h1, h2, h3 { margin: 0 0 0.4rem; letter-spacing: -0.02em; }
   cursor: pointer;
 }
 .sidebar a.active, .sidebar a:hover { background: rgba(255,255,255,0.12); color: white; }
+button.linkish, .linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
 .main { padding: 28px; }
 .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
 .muted { color: var(--muted); }

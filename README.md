@@ -167,7 +167,7 @@ PostgreSQL data is stored in the `postgres_data` Docker volume.
 2. Set a long random `SECRET_KEY`, a strong `POSTGRES_PASSWORD`, `APP_ENV=production`, `COOKIE_SECURE=true`, `SEED_ON_STARTUP=false`.
 3. Put the UI origin in `CORS_ORIGINS` (HTTPS).
 4. `docker compose up --build -d`
-5. Place TLS termination (nginx, Caddy, or a reverse proxy) in front of port 3000. Do not expose PostgreSQL publicly.
+5. Place TLS termination (nginx, Caddy, or a reverse proxy) in front of port 3000. PostgreSQL is bound to `127.0.0.1:5432` in the production Compose file and should not be exposed on a public interface.
 6. Create the first admin through a controlled seed or SQL only on a private network, then disable seed.
 7. Schedule `scripts/backup.sh` (for example daily cron) and store archives offline.
 
@@ -201,7 +201,7 @@ npm run build
 ## PDPA / security notes
 
 - Argon2id password hashing; passwords never written to the audit log
-- JWT in httpOnly cookies; Bearer tokens accepted for API clients
+- JWT in httpOnly cookies plus a double-submit CSRF cookie (`X-CSRF-Token`) on mutating cookie-authenticated requests; Bearer tokens skip CSRF for API clients
 - Login rate-limited (5/minute)
 - RBAC on the API, not only the UI
 - NRIC and diagnosis omitted from responses unless the role has `patients:read_sensitive`

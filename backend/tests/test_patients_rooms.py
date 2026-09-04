@@ -149,8 +149,49 @@ def test_waitlist_days_waited(client, db):
     assert created.json()["days_waited"] == 5
 
 
-def test_occupancy_rate_unit():
-    assert occupancy_rate(0, 18) == 0
-    assert occupancy_rate(9, 18) == 50.0
-    assert occupancy_rate(18, 18) == 100.0
-    assert occupancy_rate(1, 0) == 0.0
+def test_cannot_check_into_occupied_room_second_patient(client, db):
+    add_user(db, "duty@rmh.example.com", UserRole.DUTY_OFFICER)
+    ward, state, rooms = seed_lookups_and_rooms(db)
+    first = make_patient(db, ward, state, "HCTM26-1001")
+    second = make_patient(db, ward, state, "HCTM26-1002")
+    headers = auth_header(client, "duty@rmh.example.com")
+    room_id = rooms[0].id
+    ok = client.post(
+        f"/api/rooms/{room_id}/check-in",
+        headers=headers,
+        json={"patient_id": first.id},
+    )
+    assert ok.status_code == 200
+    denied = client.post(
+        f"/api/rooms/{room_id}/check-in",
+        headers=headers,
+        json={"patient_id": second.id},
+    )
+    assert denied.status_code == 409
+
+
+def test_patient_edit_persists_guardians_and_audit(client, db):
+    add_user(db, "social@rmh.example.com", UserRole.SOCIAL_WORKER)
+    add_user(db, "admin@rmh.example.com", UserRole.ADMIN)
+    ward, state, _ = seed_lookups_and_rooms(db)
+    headers = auth_header(client, "social@rmh.example.com")
+    created = client.post("/api/patients", headers=headers, json=_patient_payload(ward.id, state.id))
+    patient_id = created.json()["id"]
+    edited = client.patch(
+        f"/api/patients/{patient_id}",
+        headers=headers,
+        json={
+            "address": "Updated address, Cheras",
+            "registered_online": True,
+            "guardians": [
+                {"name": "Fatimah Demo", "relationship": "Mother", "contact": "013-1111111"},
+                {"name": "Ahmad Demo", "relationship": "Father", "contact": "013-2222222"},
+            ],
+        },
+    )
+    assert edited.status_code == 200
+    assert edited.json()["address"] == "Updated address, Cheras"
+    assert len(edited.json()["guardians"]) == 2
+    admin = auth_header(client, "admin@rmh.example.com")
+    logs = client.get("/api/audit-log", headers=admin, params={"entity": "Patient"}).json()
+    assert any(item["action"] in {"create", "update"} for item in logs["items"])

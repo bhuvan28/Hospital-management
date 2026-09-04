@@ -81,6 +81,7 @@ export default function WaitlistPage() {
                       <button
                         className="btn secondary"
                         onClick={async () => {
+                          if (!window.confirm(`Resolve waiting-list entry for ${row.patient_name}?`)) return;
                           await api(`/api/waitlist/${row.id}/resolve`, { method: "POST" });
                           await load();
                         }}

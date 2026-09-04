@@ -21,6 +21,8 @@ def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_us
     if has_permission(user.role, "dashboard:ops") or has_permission(user.role, "rooms:read"):
         payload["occupancy"] = occupancy_service.get_occupancy_summary(db)
         payload["patient_census"] = db.scalar(select(func.count(Patient.id))) or 0
+        payload["current_occupants"] = occupancy_service.current_occupants_summary(db)
+        payload["todays_movements"] = occupancy_service.todays_movements(db)
     if has_permission(user.role, "dashboard:finance"):
         payload["donations"] = donation_summary(db=db, year=None, month=None, _=user).model_dump(mode="json")
         payload["petty_cash"] = petty_summary(db=db, year=None, month=None, _=user).model_dump(mode="json")
@@ -28,6 +30,8 @@ def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_us
     if has_permission(user.role, "dashboard:viewer") and user.role.value == "viewer":
         payload["occupancy"] = occupancy_service.get_occupancy_summary(db)
         payload["patient_census"] = db.scalar(select(func.count(Patient.id))) or 0
+        payload.pop("current_occupants", None)
+        payload.pop("todays_movements", None)
         payload["note"] = "Viewer dashboard shows aggregated figures only. Patient identifiers are not included."
     if not payload.get("occupancy") and not payload.get("donations"):
         payload["message"] = "No dashboard widgets are assigned to this role."

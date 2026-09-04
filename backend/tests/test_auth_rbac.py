@@ -30,10 +30,28 @@ def test_disabled_user_cannot_login(client, db):
 def test_logout(client, db):
     add_user(db, "admin@rmh.example.com", UserRole.ADMIN)
     login(client, "admin@rmh.example.com")
-    out = client.post("/api/auth/logout")
+    csrf = client.cookies.get("rmh_csrf")
+    out = client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf})
     assert out.status_code == 200
     me = client.get("/api/auth/me")
     assert me.status_code == 401
+
+
+def test_csrf_required_for_cookie_mutations(client, db):
+    add_user(db, "admin@rmh.example.com", UserRole.ADMIN)
+    login(client, "admin@rmh.example.com")
+    payload = {
+        "name": "CSRF Duty",
+        "email": "csrf-duty@rmh.example.com",
+        "password": "DevPass!2026",
+        "role": "duty_officer",
+    }
+    blocked = client.post("/api/users", json=payload)
+    assert blocked.status_code == 403
+    assert blocked.json()["error"]["code"] == "csrf"
+    csrf = client.cookies.get("rmh_csrf")
+    allowed = client.post("/api/users", headers={"X-CSRF-Token": csrf}, json=payload)
+    assert allowed.status_code == 201
 
 
 def test_duty_officer_cannot_access_finance(client, db):
@@ -41,17 +59,20 @@ def test_duty_officer_cannot_access_finance(client, db):
     headers = auth_header(client, "duty@rmh.example.com")
     assert client.get("/api/donations", headers=headers).status_code == 403
     assert client.get("/api/petty-cash", headers=headers).status_code == 403
-    assert client.post(
-        "/api/donations",
-        headers=headers,
-        json={
-            "date": "2026-01-01",
-            "donor_name": "X",
-            "type": "cash",
-            "quantity": 1,
-            "amount": 10,
-        },
-    ).status_code == 403
+    assert (
+        client.post(
+            "/api/donations",
+            headers=headers,
+            json={
+                "date": "2026-01-01",
+                "donor_name": "X",
+                "type": "cash",
+                "quantity": 1,
+                "amount": 10,
+            },
+        ).status_code
+        == 403
+    )
 
 
 def test_finance_cannot_modify_patients(client, db):

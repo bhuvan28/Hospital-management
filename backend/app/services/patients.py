@@ -24,12 +24,22 @@ def _patient_options():
 
 
 def get_patient(db: Session, patient_id: int) -> Patient:
-    patient = db.execute(
-        select(Patient).options(*_patient_options()).where(Patient.id == patient_id)
-    ).unique().scalar_one_or_none()
+    patient = (
+        db.execute(select(Patient).options(*_patient_options()).where(Patient.id == patient_id))
+        .unique()
+        .scalar_one_or_none()
+    )
     if patient is None:
         raise NotFoundError("Patient not found")
     return patient
+
+
+SORTABLE = {
+    "name": Patient.name,
+    "registration_no": Patient.registration_no,
+    "registered_at": Patient.registered_at,
+    "status": Patient.status,
+}
 
 
 def patient_query(
@@ -39,6 +49,8 @@ def patient_query(
     registration_no: str | None = None,
     ward_clinic_id: int | None = None,
     status: str | None = None,
+    sort_by: str = "name",
+    sort_dir: str = "asc",
 ) -> Select:
     stmt = select(Patient).options(*_patient_options())
     if q:
@@ -50,7 +62,9 @@ def patient_query(
         stmt = stmt.where(Patient.ward_clinic_id == ward_clinic_id)
     if status:
         stmt = stmt.where(Patient.status == status)
-    return stmt.order_by(Patient.name)
+    column = SORTABLE.get(sort_by, Patient.name)
+    ordered = column.desc() if sort_dir == "desc" else column.asc()
+    return stmt.order_by(ordered, Patient.id)
 
 
 def paginate_patients(
@@ -60,9 +74,7 @@ def paginate_patients(
     page_size: int,
 ) -> tuple[list[Patient], int]:
     total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
-    items = list(
-        db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).unique().all()
-    )
+    items = list(db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).unique().all())
     return items, total
 
 

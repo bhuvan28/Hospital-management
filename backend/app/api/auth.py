@@ -9,6 +9,7 @@ from app.core.limiter import limiter
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, TokenUser
+from app.security.csrf import clear_csrf_cookie, set_csrf_cookie
 from app.security.hashing import verify_password
 from app.security.rbac import navigation_for, permissions_for
 from app.security.tokens import create_access_token
@@ -51,6 +52,7 @@ def login(request: Request, payload: LoginRequest, response: Response, db: Sessi
         raise ForbiddenError("This account is inactive")
     token = create_access_token(str(user.id), extra={"role": user.role.value})
     _set_session_cookies(response, token)
+    set_csrf_cookie(response)
     return LoginResponse(user=_user_payload(user))
 
 
@@ -58,6 +60,7 @@ def login(request: Request, payload: LoginRequest, response: Response, db: Sessi
 def logout(response: Response):
     settings = get_settings()
     response.delete_cookie(settings.cookie_name, path="/")
+    clear_csrf_cookie(response)
     return {"message": "Signed out"}
 
 
