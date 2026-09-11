@@ -1,0 +1,5 @@
+{
+  "name": "RMH HCTM UKM Operations Platform",
+  "install": "sudo DEBIAN_FRONTEND=noninteractive apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql postgresql-contrib python3-pip python3-venv && python3 -m pip install --user -r backend/requirements-dev.txt",
+  "start": "bash scripts/ensure-postgres.sh"
+}
